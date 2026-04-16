@@ -163,6 +163,9 @@ All changes pushed to GitHub: `https://github.com/mjcolmenarez/driver_fatigue_de
 
 ### ⏳ In Progress / To Do
 - [ ] Record demonstration video (5 min) — Ready to go
+  - See `DEMO_RECORDING_GUIDE.md` for step-by-step instructions
+  - System is fully ready, just needs demonstration
+  
 - [ ] Write technical report (2-3 hours)
   - System description & architecture
   - Classical methodology & results  
@@ -180,7 +183,9 @@ All changes pushed to GitHub: `https://github.com/mjcolmenarez/driver_fatigue_de
 ## 🎯 Next Steps & Timeline
 
 ### Phase 1: Recording Demo (Priority: HIGH) ⏰ 15 min
-**Command:**
+**See also:** `DEMO_RECORDING_GUIDE.md` for detailed step-by-step instructions
+
+**Quick Command:**
 ```bash
 cd /Users/sofiaclaudiabonoan/Desktop/driver_fatigue_detection
 .venv/bin/python main.py --camera 0 --output demo_output.mp4
@@ -291,7 +296,6 @@ We have successfully built and validated a **production-ready real-time fatigue 
 
 ---
 
-**Report Prepared By:** GitHub Copilot  
 **Last Updated:** April 16, 2026, 16:50 UTC  
 **Repository:** https://github.com/mjcolmenarez/driver_fatigue_detection
 
