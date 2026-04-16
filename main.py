@@ -274,10 +274,13 @@ class FatigueDetectionPipeline:
                 # Scale and predict
                 feature_vector_scaled = self.scaler.transform(feature_vector)
                 prediction = self.model.predict(feature_vector_scaled)[0]
-                confidence = max(self.model.decision_function(feature_vector_scaled)[0])
+                
+                # Get confidence score (distance from decision boundary)
+                decision_scores = self.model.decision_function(feature_vector_scaled)
+                confidence = abs(float(decision_scores[0]))
                 
                 self.last_prediction = "SLEEPY" if prediction == 1 else "AWAKE"
-                self.last_confidence = abs(confidence)
+                self.last_confidence = confidence
                 
                 results["prediction"] = self.last_prediction
                 results["confidence"] = self.last_confidence
