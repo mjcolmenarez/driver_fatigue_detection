@@ -441,7 +441,9 @@ class DemoApp:
         """
         self.mode = mode
         self.pipeline = FatigueDetectionPipeline(mode=mode)
+        # Windows: use CAP_DSHOW instead of CAP_AVFOUNDATION
         self.cap = cv2.VideoCapture(source, cv2.CAP_AVFOUNDATION)
+        # self.cap = cv2.VideoCapture(source, cv2.CAP_DSHOW) # Windows
 
         if not self.cap.isOpened():
             raise RuntimeError(f"Failed to open video source: {source}")
