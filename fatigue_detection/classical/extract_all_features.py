@@ -111,14 +111,14 @@ def main():
     all_data = []
 
     # Process both people
-    people = {
-        "sofia": "data/sofia",
-        "matteo": "data/matteo",
+    video_folders = {
+        ("sofia",  "awake"):  "fatigue_detection/modern/Sofia- awake",
+        ("sofia",  "sleepy"): "fatigue_detection/modern/Sofia- sleepy",
+        ("matteo", "awake"):  "fatigue_detection/modern/Matteo - awake",
+        ("matteo", "sleepy"): "fatigue_detection/modern/Matteo - Sleepy",
     }
 
-    for person, base_dir in people.items():
-        for label in ["awake", "sleepy"]:
-            folder = os.path.join(base_dir, label)
+    for (person, label), folder in video_folders.items():
             if not os.path.exists(folder):
                 print(f"Skipping {folder} (not found)")
                 continue

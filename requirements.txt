@@ -2,9 +2,7 @@ opencv-python
 mediapipe
 numpy
 scipy
-opencv-python
-mediapipe
-numpy
-scipy
 scikit-learn
 pandas
+torch
+torchvision

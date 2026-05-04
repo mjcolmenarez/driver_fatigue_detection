@@ -212,3 +212,5 @@ __marimo__/
 data/**/*.MOV
 data/**/*.mov
 data/**/*.mp4
+
+*.jpg
