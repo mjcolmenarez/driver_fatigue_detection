@@ -61,10 +61,20 @@ def main():
 
     train_ds, val_ds, _, _ = make_splits()
 
-    # Class weights to handle imbalance (more sleepy than awake in the dataset)
+    # Class weights to handle imbalance.
+    # pos_weight scales the loss for positive (sleepy) examples.
+    # For BCEWithLogitsLoss the standard formula is  N_neg / N_pos.
+    # Here sleepy is the MAJORITY class, so pos_weight ends up < 1,
+    # which correctly DOWN-weights the dominant class instead of
+    # encouraging the model to predict sleepy by default.
     n_awake  = int((train_ds.y == 0).sum())
     n_sleepy = int((train_ds.y == 1).sum())
-    pos_weight = torch.tensor([n_awake / n_sleepy], dtype=torch.float32).to(DEVICE)
+    # If awake is the minority, we want the loss to penalise missing it more.
+    # Standard formula: pos_weight = n_neg / n_pos
+    pos_weight = torch.tensor([n_awake / max(n_sleepy, 1)],
+                              dtype=torch.float32).to(DEVICE)
+    print(f"Class balance: {n_awake} awake / {n_sleepy} sleepy   "
+          f"(pos_weight = {pos_weight.item():.3f})")
 
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
                               num_workers=NUM_WORKERS)
