@@ -213,6 +213,7 @@ class DLFatigueDetector:
             seq = seq.to(self.device)
             with self._torch.no_grad():
                 prob = self._torch.sigmoid(self.lstm_head(seq)).item()
+                print("DL prob:", prob)
             return ("SLEEPY" if prob > 0.5 else "AWAKE"), prob
         except Exception:
             return None, 0.0
@@ -233,7 +234,7 @@ class FatigueDetectionPipeline:
         "ear_velocity", "eye_closed", "blink_rolling_sum", "perclos"
     ]
     
-    EAR_THRESHOLD = 0.2  # Eye closure threshold
+    EAR_THRESHOLD = 0.18  # Eye closure threshold
     ROLLING_WINDOW = 15  # Frames for rolling statistics
     PERCLOS_WINDOW = 30  # Frames for PERCLOS calculation
     
@@ -278,6 +279,7 @@ class FatigueDetectionPipeline:
 
         # Data buffers for temporal features (classical)
         self.feature_history = deque(maxlen=self.ROLLING_WINDOW)
+        self.ear_history_long = deque(maxlen=120)
         self.eye_closure_history = deque(maxlen=self.PERCLOS_WINDOW)
         self.last_ear = None
         self.blink_count = 0
@@ -291,8 +293,8 @@ class FatigueDetectionPipeline:
         self.frame_count = 0
 
         # Voting buffers — only flip to SLEEPY when a sustained majority agrees
-        VOTE_WINDOW = 45          # frames over which to vote (~1.5 sec at 30fps)
-        SLEEPY_THRESHOLD = 0.60   # fraction of SLEEPY votes needed to call SLEEPY
+        VOTE_WINDOW = 60        # frames over which to vote (~1.5 sec at 30fps)
+        SLEEPY_THRESHOLD = 0.75   # fraction of SLEEPY votes needed to call SLEEPY
         self._svm_votes = deque(maxlen=VOTE_WINDOW)
         self._dl_votes  = deque(maxlen=VOTE_WINDOW)
         self._sleepy_threshold = SLEEPY_THRESHOLD
@@ -320,13 +322,14 @@ class FatigueDetectionPipeline:
         features["ear_velocity"] = abs(ears[-1] - ears[-2]) if len(ears) >= 2 else 0.0
         
         # Eye closure flag
-        features["eye_closed"] = 1.0 if ears[-1] < self.EAR_THRESHOLD else 0.0
+        ear_thresh = np.percentile(list(self.ear_history_long), 25) if len(self.ear_history_long) >= 30 else self.EAR_THRESHOLD
+        features["eye_closed"] = 1.0 if ears[-1] < ear_thresh else 0.0
         
         # Blink sum (count of closed eyes in window)
-        features["blink_rolling_sum"] = sum([1 for e in ears if e < self.EAR_THRESHOLD])
+        features["blink_rolling_sum"] = sum([1 for e in ears if e < ear_thresh])
         
         # PERCLOS (percentage of closure in last 30 frames)
-        closure_percent = len(self.eye_closure_history) / max(len(self.eye_closure_history), 1)
+        closure_percent = sum(self.eye_closure_history) / max(len(self.eye_closure_history), 1)
         features["perclos"] = closure_percent
         
         return features
@@ -360,6 +363,7 @@ class FatigueDetectionPipeline:
         # If face detected, add to history
         if face_features:
             self.feature_history.append(face_features)
+            self.ear_history_long.append(face_features["ear"])
             eye_closed = face_features["ear"] < self.EAR_THRESHOLD
             self.eye_closure_history.append(eye_closed)
             self.last_ear = face_features["ear"]
