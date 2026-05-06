@@ -1,6 +1,6 @@
 # 🚗 Driver Fatigue Detection with Gesture-Based Activation
 
-> Computer Vision group project — a real-time driver fatigue detection system with a gesture-based activation mechanism. Built with MediaPipe, OpenCV, PyTorch, and scikit-learn.
+> Computer Vision group project, a real-time driver fatigue detection system with a gesture-based activation mechanism. Built with MediaPipe, OpenCV, PyTorch, and scikit-learn.
 
 ---
 
@@ -8,10 +8,11 @@
 
 This system implements a **hybrid driver fatigue detection pipeline** with two main components:
 
-1. **Gesture-Based Activation** : the system stays inactive until the driver performs a specific hand gesture sequence (**open hand → thumbs up**), each held for 0.5 s within a 5-second window.
-2. **Fatigue Detection** :once activated, the system monitors the driver for signs of drowsiness using two parallel pipelines:
+1. **Gesture-Based Activation**: the system stays inactive until the driver performs a specific hand gesture sequence (**open hand → thumbs up**), each held for 0.5 s within a 5-second window.
+2. **Fatigue Detection**: once activated, the system monitors the driver for signs of drowsiness using two parallel pipelines:
    - **Classical pipeline** : handcrafted features (EAR, MAR, head ratio, PERCLOS, etc.) + SVM classifier
-   - **Modern pipeline** :ResNet-34 CNN encoder + 2-layer LSTM head (CNN-LSTM)
+   - **Modern pipeline** : ResNet-34 CNN encoder + 2-layer LSTM head (CNN-LSTM)
+
 
 ---
 
@@ -44,17 +45,13 @@ driver_fatigue_detection/
 │   │   └── features_all.csv
 │   │
 │   └── modern/
-│       ├── Matteo - awake
-│       ├── Matteo - Sleepy
-│       ├── Sofia - awake
-│       ├── Sofia - sleepy          
 │       ├── extract_face_crops.py   # Step 1: extract face crops from videos
 │       ├── extract_cnn_features.py # Step 2: encode crops with ResNet-34
 │       ├── dataset.py              # PyTorch Dataset for sequence windows
 │       ├── model.py                # CNNEncoder (ResNet-34) + FatigueLSTMHead
 │       ├── train.py                # Train the LSTM head
 │       ├── evaluate.py             # Offline evaluation
-│       └── cnn_lstm_model.pth      # Trained CNN-LSTM checkpoint ← used by main.py
+│       └── cnn_lstm_model.pth      # ✅ Trained CNN-LSTM checkpoint ← used by main.py
 │
 └── data/
     └── crops/
@@ -94,6 +91,12 @@ pip install -r requirements.txt
 
 > **Note on PyTorch:** `requirements.txt` pulls the default CPU build. If you have a CUDA GPU, install PyTorch first from [pytorch.org](https://pytorch.org/get-started/locally/) before running the command above.
 
+### 4. (Optional) Download training videos
+
+Only needed if you want to **retrain** the models. For running the pre-trained system, skip this — all `.pkl` and `.pth` checkpoints are already included in the repo.
+
+Download from [Google Drive](https://drive.google.com/drive/folders/12Bj_WIQJwLvqsWceDXsqbualINhLOvw0?usp=drive_link) and place the folders inside `fatigue_detection/modern/` 
+
 ---
 
 ## 🚀 Running the System
@@ -104,7 +107,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Launches the **hybrid** system (SVM + CNN-LSTM) using your default webcam. The system starts **inactive** ,perform the gesture sequence to activate fatigue detection.
+Launches the **hybrid** system (SVM + CNN-LSTM) using your default webcam. The system starts **inactive**, perform the gesture sequence to activate fatigue detection.
 
 #### Command-line options
 
@@ -154,8 +157,8 @@ python main.py --mode hybrid --camera 0 --output demo_output.mp4
 
 The system is **inactive by default**. To activate it:
 
-1. Show an **open hand** (all 5 fingers extended) to the camera — hold for **0.5 seconds**.
-2. Then show a **thumbs up** — hold for **0.5 seconds**.
+1. Show an **open hand** (all 5 fingers extended) to the camera, hold for **0.5 seconds**.
+2. Then show a **thumbs up**, hold for **0.5 seconds**.
 3. Both gestures must be performed within **5 seconds** of each other.
 4. The HUD banner changes from `SYSTEM: INACTIVE` (red) to `SYSTEM: ACTIVE` (green).
 
