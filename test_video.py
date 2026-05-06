@@ -14,7 +14,7 @@ if not os.path.exists(model_path):
     print("Download complete!")
 
 # Open one of Sofia's videos
-video_path = "data/sofia/awake/IMG_9498.MOV"
+video_path = r"fatigue_detection\modern\Sofia- awake\IMG_9498.MOV"
 cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
