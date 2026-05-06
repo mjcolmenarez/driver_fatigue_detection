@@ -1,105 +1,231 @@
 # 🚗 Driver Fatigue Detection with Gesture-Based Activation
 
-> Computer Vision group project — a real-time driver fatigue detection system with a gesture-based activation mechanism. Built with MediaPipe, OpenCV, and scikit-learn.
+> Computer Vision group project — a real-time driver fatigue detection system with a gesture-based activation mechanism. Built with MediaPipe, OpenCV, PyTorch, and scikit-learn.
 
 ---
 
 ## 📌 Overview
 
-This system has two main components:
+This system implements a **hybrid driver fatigue detection pipeline** with two main components:
 
-1. **Gesture-Based Activation** — the system remains inactive until the driver performs a specific hand gesture sequence (open hand → thumbs up)
-2. **Fatigue Detection** — once activated, the system monitors the driver for signs of drowsiness using eye closure, yawning, and head pose analysis
+1. **Gesture-Based Activation** : the system stays inactive until the driver performs a specific hand gesture sequence (**open hand → thumbs up**), each held for 0.5 s within a 5-second window.
+2. **Fatigue Detection** :once activated, the system monitors the driver for signs of drowsiness using two parallel pipelines:
+   - **Classical pipeline** : handcrafted features (EAR, MAR, head ratio, PERCLOS, etc.) + SVM classifier
+   - **Modern pipeline** :ResNet-34 CNN encoder + 2-layer LSTM head (CNN-LSTM)
 
-> ⚠️ Video files are not included in the repo due to size. Download them from [Google Drive](https://drive.google.com/drive/folders/12Bj_WIQJwLvqsWceDXsqbualINhLOvw0?usp=sharing) and place them in the corresponding `data/` subfolders.
+---
+
+## 📁 Project Structure
+
+```
+driver_fatigue_detection/
+│
+├── main.py                          # ← Main entry point (full real-time pipeline)
+├── test_video.py                    # Quick smoke-test with a video file
+├── requirements.txt
+│
+├── face_landmarker.task             # MediaPipe face model (bundled)
+├── hand_landmarker.task             # MediaPipe hand model (bundled)
+│
+├── gesture_activation/
+│   └── gesture_detector.py         # GestureDetector + GestureSequenceValidator
+│
+├── fatigue_detection/
+│   ├── classical/
+│   │   ├── extract_features.py     # Extract EAR/MAR/head features from videos
+│   │   ├── extract_features_v2.py  # Extended feature set
+│   │   ├── extract_all_features.py # Combined dataset extraction
+│   │   ├── train_classifier.py     # Train SVM / RF / KNN (per-video features)
+│   │   ├── train_classifier_v2.py  # Train on extended feature set
+│   │   ├── train_classifier_all.py # Train on full combined dataset
+│   │   ├── test_detection.py       # Offline evaluation script
+│   │   ├── best_model_all.pkl      # Trained SVM model ← used by main.py
+│   │   ├── scaler_all.pkl          # Feature scaler   ← used by main.py
+│   │   └── features_all.csv
+│   │
+│   └── modern/
+│       ├── Matteo - awake
+│       ├── Matteo - Sleepy
+│       ├── Sofia - awake
+│       ├── Sofia - sleepy          
+│       ├── extract_face_crops.py   # Step 1: extract face crops from videos
+│       ├── extract_cnn_features.py # Step 2: encode crops with ResNet-34
+│       ├── dataset.py              # PyTorch Dataset for sequence windows
+│       ├── model.py                # CNNEncoder (ResNet-34) + FatigueLSTMHead
+│       ├── train.py                # Train the LSTM head
+│       ├── evaluate.py             # Offline evaluation
+│       └── cnn_lstm_model.pth      # Trained CNN-LSTM checkpoint ← used by main.py
+│
+└── data/
+    └── crops/
+        ├── features/               # Pre-computed .npy CNN feature files
+        ├── features_manifest.csv
+        └── manifest.csv
+```
 
 ---
 
 ## ⚙️ Setup
 
+### 1. Clone the repository
+
 ```bash
-# 1. Clone the repo
 git clone https://github.com/mjcolmenarez/driver_fatigue_detection.git
 cd driver_fatigue_detection
+```
 
-# 2. Create and activate virtual environment
+### 2. Create and activate a virtual environment
+
+```bash
+# macOS / Linux
 python3 -m venv .venv
 source .venv/bin/activate
 
-# 3. Install dependencies
+# Windows
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+### 3. Install dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-# 4. Download videos from Google Drive and place in data/ folders
+> **Note on PyTorch:** `requirements.txt` pulls the default CPU build. If you have a CUDA GPU, install PyTorch first from [pytorch.org](https://pytorch.org/get-started/locally/) before running the command above.
 
-# 5. Test that everything works
+---
+
+## 🚀 Running the System
+
+### Run the full real-time pipeline
+
+```bash
+python main.py
+```
+
+Launches the **hybrid** system (SVM + CNN-LSTM) using your default webcam. The system starts **inactive** ,perform the gesture sequence to activate fatigue detection.
+
+#### Command-line options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--camera ID` | `0` | Webcam device index |
+| `--video PATH` | — | Use a pre-recorded video file instead of webcam |
+| `--output PATH` | — | Save the annotated output to a video file |
+| `--mode MODE` | `hybrid` | `classical`, `modern`, or `hybrid` |
+
+```bash
+# Classical SVM only
+python main.py --mode classical
+
+# CNN-LSTM only
+python main.py --mode modern
+
+# Hybrid (both side-by-side) — default
+python main.py --mode hybrid
+
+# Use a different camera (e.g. index 1 for external webcam)
+python main.py --camera 1
+
+# Run on a pre-recorded video
+python main.py --video path/to/video.mp4
+
+# Save annotated output to a file
+python main.py --output demo_output.mp4
+
+# Full example: hybrid on webcam 0, saving output
+python main.py --mode hybrid --camera 0 --output demo_output.mp4
+```
+
+> **Windows users:** open `main.py` and swap the two `cv2.VideoCapture` lines in `DemoApp.__init__` — comment out `CAP_AVFOUNDATION` and uncomment `CAP_DSHOW`.
+
+#### Keyboard controls
+
+| Key | Action |
+|---|---|
+| `q` or `ESC` | Quit |
+| `r` | Reset the gesture sequence |
+| `s` | Toggle output video recording on/off |
+
+---
+
+### Gesture activation sequence
+
+The system is **inactive by default**. To activate it:
+
+1. Show an **open hand** (all 5 fingers extended) to the camera — hold for **0.5 seconds**.
+2. Then show a **thumbs up** — hold for **0.5 seconds**.
+3. Both gestures must be performed within **5 seconds** of each other.
+4. The HUD banner changes from `SYSTEM: INACTIVE` (red) to `SYSTEM: ACTIVE` (green).
+
+If the sequence is wrong or times out, the system stays inactive. Press `r` to reset and try again.
+
+---
+
+### Test gesture detection in isolation
+
+```bash
+python gesture_activation/gesture_detector.py
+```
+
+Opens your webcam, prints the detected gesture label in real time, and shows the activation progress. Press `q` to quit or `r` to reset.
+
+---
+
+### Quick smoke-test
+
+```bash
 python test_video.py
 ```
 
+Runs the classical pipeline on a bundled sample clip to verify the installation is working correctly.
+
 ---
 
-## ✅ What's Done
+## 🔁 Retraining the Models (Optional)
 
-### Gesture Activation
-The system uses **MediaPipe Hand Landmarker** to detect and classify hand gestures in real time. The activation sequence requires the driver to show an **open hand** followed by a **thumbs up**, each held for 0.5 seconds, completed within a 5-second window. If the sequence is incorrect or times out, the system remains inactive.
+### Classical pipeline
 
 ```bash
-# Test it with your webcam
-python gesture_activation/gesture_detector.py
-# Press 'q' to quit, 'r' to reset
+# Step 1 — extract per-frame features from all videos
+python fatigue_detection/classical/extract_all_features.py
+
+# Step 2 — train and evaluate classifiers
+python fatigue_detection/classical/train_classifier_all.py
 ```
 
-### Classical Fatigue Detection
-The classical pipeline extracts **13 features per frame** using MediaPipe's 478 facial landmarks:
+Outputs: `best_model_all.pkl` and `scaler_all.pkl` inside `fatigue_detection/classical/`
 
-| Feature | Description |
-|---|---|
-| EAR | Eye Aspect Ratio (eye openness) |
-| MAR | Mouth Aspect Ratio (yawning) |
-| Head Ratio | Head pose estimation (nodding) |
-| Rolling Mean/Std | Smoothed values over 15-frame window |
-| EAR Velocity | Speed of eye closure |
-| PERCLOS | % of eye closure over 30 frames |
-| Blink Sum | Blink count in rolling window |
+### Modern pipeline (CNN-LSTM)
 
-**Results on combined dataset (75,205 frames from 119 videos):**
+```bash
+# Step 1 — extract face crops from every video frame
+python fatigue_detection/modern/extract_face_crops.py
 
-| Model | Per-Frame Accuracy | Per-Video Accuracy |
-|---|---|---|
-| **SVM (RBF)** | **84.3%** | **91.7%** |
-| Random Forest | 83.7% | 90.8% |
-| KNN (k=7) | 82.5% | 89.9% |
+# Step 2 — encode crops with the frozen ResNet-34 backbone
+python fatigue_detection/modern/extract_cnn_features.py
 
-Top features by importance: `ear_rolling_mean` (26%), `ear` (24%), `head_ratio_rolling_mean` (10%)
+# Step 3 — train the LSTM head on the pre-computed features
+python fatigue_detection/modern/train.py
+
+# Step 4 — evaluate on the held-out test split
+python fatigue_detection/modern/evaluate.py
+```
+
+Output: `fatigue_detection/modern/cnn_lstm_model.pth`
 
 ---
 
-## 🔲 What's Left
-
-### Task 1 — Deep Learning Fatigue Detection
-Build a CNN or CNN-LSTM model in `fatigue_detection/modern/` that classifies awake vs sleepy. Use the same video data and compare results against the classical approach.
-
-**Steps:**
-1. Extract face crops or use landmark sequences from the existing videos
-2. Build and train a CNN or CNN-LSTM model (PyTorch or TensorFlow)
-3. Evaluate with the same video-based train/test split
-4. Save the trained model as a `.pth` file
-
-### Task 2 — Integration and Demo
-Build `main.py` that runs the full pipeline:
-1. System starts inactive
-2. Gesture activation waits for open hand → thumbs up
-3. Once activated, fatigue detection runs in real time
-4. Display alerts when fatigue is detected
-5. Record demo video showing the full flow
-
-### Task 3 — Technical Report
-Write the report covering: system description, methodology, experimental setup, results comparing classical vs modern, and discussion.
-
----
 ## 🛠️ Dependencies
+
+```
 opencv-python
 mediapipe
 numpy
 scipy
 scikit-learn
 pandas
+torch
+torchvision
+```
